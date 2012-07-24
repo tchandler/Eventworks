@@ -10,6 +10,7 @@
  *   Root object does Channel construction and defaults to global channel for
  *     publish, subscribe, and unpublish
  *   Chainable API
+ *   First instance also functional inheritor
  * What I learned
  *   How to structure modules
  *   Call/apply can't be stored (Obvious in retrospect)
@@ -17,43 +18,40 @@
  *   Using function generators to simplify API design
  *   How to create external APIs
  *   How to do functional inheritance
- * Nice to haves
+ * Future features
  *   Callback priority
- *   Callback queuing
- *   Possibily promises from subscriptions
- * Possibly Future Exercises
- *   Refactor to make the internals be event based with a private channel
+ *   Callback queuing, prevent callbacks from overlapping and cap consecutive publishes
+ *   Optional synchronicity
+ *   Possibily promises from subscriptions (breaks chaining?)
+ *   Some form of cross channel piping
+ *   Allow multi-event subscription with a delimeter and/or array
  */
 
 (function (Eventworks) {
 	
 	//Helpers
 	var slice = Array.prototype.slice,
-		//each from underscore.js
+		//modified each from underscore.js
 		each = function(obj, iterator, context) {
 			if (obj == null) return;
 			if (Array.prototype.forEach && obj.forEach === Array.prototype.forEach) {
 				obj.forEach(iterator, context);
 			} else if (obj.length === +obj.length) {
 				for (var i = 0, l = obj.length; i < l; i++) {
-					if (i in obj && iterator.call(context, obj[i], i, obj) === breaker) return;
+					if (i in obj) iterator.call(context, obj[i], i, obj);
 			}
 			} else {
 				for (var key in obj) {
-					if (_.has(obj, key)) {
-						if (iterator.call(context, obj[key], key, obj) === breaker) return;
+					if (obj.hasOwnProperty(key)) {
+						iterator.call(context, obj[key], key, obj);
 					}
 				}
 			}
 		},
-		//indexOf from underscore.js
-		indexOf = function (argument) {
+		//modified indexOf from underscore.js
+		indexOf = function (array, item) {
 			if (array == null) return -1;
 			var i, l;
-			if (isSorted) {
-				i = _.sortedIndex(array, item);
-				return array[i] === item ? i : -1;
-			}
 			if (Array.prototype.indexOf && array.indexOf === Array.prototype.indexOf) return array.indexOf(item);
 			for (i = 0, l = array.length; i < l; i++) if (i in array && array[i] === item) return i;
 			return -1;
@@ -65,7 +63,7 @@
 			return new F();
 		};
 	
-	function makeEventworks(eventable) {
+	function makeEventworks(eventableObj) {
 
 		//Privates
 		var channels = {},
@@ -253,12 +251,11 @@
 			};
 		}
 
-		eventable.channel = getChannel;
-		eventable.publish = createGlobalChannelAction("publish");
-		eventable.subscribe = createGlobalChannelAction("subscribe");
-		eventable.unsubscribe = createGlobalChannelAction("unsubscribe");
+		eventableObj.channel = getChannel;
+		eventableObj.publish = createGlobalChannelAction("publish");
+		eventableObj.subscribe = createGlobalChannelAction("subscribe");
+		eventableObj.unsubscribe = createGlobalChannelAction("unsubscribe");
 	}
-
 
 	makeEventworks(Eventworks);
 	Eventworks.makeEventworks = makeEventworks;
