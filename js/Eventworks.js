@@ -1,35 +1,6 @@
 /*
- * Eventworks
- * Why I Wrote It?
- *   To experiment
- *   To facilitate loosely coupled communications between modules
- *   To allow better organized events with Channels
- * How it works?
- *   Channel, Topic and Subject prototypes
- *   Limit API exposure with a channel wrapper
- *   Root object does Channel construction and defaults to global channel for
- *     publish, subscribe, and unpublish
- *   Chainable API
- *   First instance also functional inheritor
- * What I learned
- *   How to structure modules
- *   Call/apply can't be stored (Obvious in retrospect)
- *   How to write a chainable API
- *   Using function generators to simplify API design
- *   How to create external APIs
- *   How to do functional inheritance
- * Future features
- *   Callback priority
- *   Callback queuing, prevent callbacks from overlapping and cap consecutive publishes
- *   Optional synchronicity
- *   Nested channels
- *   Possibily promises from subscriptions (breaks chaining?)
- *   Some form of cross channel piping
- *   Allow multi-event subscription with a delimeter and/or array
- *   Better open-closed support
- *     Optional handler on the extended object to get deeper access to allow extension of internals?
- *     Second argument which exposes internals?
- *   Cross platform support (Node)
+ * Eventworks - A channeled pubsub system
+ * https://github.com/zohogorganzola/Eventworks
  */
 
 (function (Eventworks) {
@@ -249,11 +220,3 @@
 	makeEventworks(Eventworks);
 	Eventworks.makeEventworks = makeEventworks;
 })(window.Eventworks = window.Eventworks || {});
-
-
-var someChannel = Eventworks.channel("some channel")
-	.subscribe("some event", function() { console.log("some code");})
-	.publish("some event");
-
-Eventworks.makeEventworks(obj);
-obj.channel().subscribe().publish().unsubscribe();
