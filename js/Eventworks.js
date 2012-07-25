@@ -22,9 +22,14 @@
  *   Callback priority
  *   Callback queuing, prevent callbacks from overlapping and cap consecutive publishes
  *   Optional synchronicity
+ *   Nested channels
  *   Possibily promises from subscriptions (breaks chaining?)
  *   Some form of cross channel piping
  *   Allow multi-event subscription with a delimeter and/or array
+ *   Better open-closed support
+ *     Optional handler on the extended object to get deeper access to allow extension of internals?
+ *     Second argument which exposes internals?
+ *   Cross platform support (Node)
  */
 
 (function (Eventworks) {
@@ -63,13 +68,31 @@
 			return new F();
 		};
 	
+	function createChannelInterface(channel) {
+		var channelInterface = createObject(null);
+
+		channelInterface.publish = function() {
+			channel.publish.apply(channel, arguments);
+			return channelInterface;
+		};
+		channelInterface.subscribe = function() {
+			channel.subscribe.apply(channel, arguments);
+			return channelInterface;
+		};
+
+		channelInterface.unsubscribe = function() {
+			channel.unsubscribe.apply(channel, arguments);
+			return channelInterface;
+		};
+
+		return channelInterface;
+	}
+
 	function makeEventworks(eventableObj) {
 
 		//Privates
 		var channels = {},
 			GLOBAL_CHANNEL_NAME = "__global__";
-
-
 
 		function Channel(name) {
 			this._name = name;
@@ -89,10 +112,9 @@
 
 		Channel.prototype.subscribe = function(topicName, callback, context) {
 			var topic = this.getTopic(topicName),
-				subscription = new Subscription(topic, callback, context);
+				subscription = new Subscription(callback, context);
 
 			topic.addSubscription(subscription);
-			return this;
 		};
 
 		Channel.prototype.publish = function(topicName, eventObj) {
@@ -102,8 +124,6 @@
 				topic = this.getTopic(topicName);
 				topic.callSubscriptions(eventObj);
 			}
-
-			return this;
 		};
 
 		Channel.prototype.unsubscribe = function(subscription) {
@@ -113,9 +133,7 @@
 				callbackContext = args[2],
 				callbackIndex;
 
-			if (subscription instanceof Subscription) {
-				subscription.unsubscribe();
-			} else if(typeof topic === "string") {
+			if(typeof topic === "string") {
 				topic = this.getTopic(topic);
 
 				topic.removeSubscriptionByCallback(callback, callbackContext);
@@ -130,29 +148,7 @@
 
 				this._topics = [];
 			}
-
-			return this;
 		};
-
-		function createChannelInterface(channel) {
-			var channelInterface = createObject(null);
-
-			channelInterface.publish = function() {
-				channel.publish.apply(channel, arguments);
-				return channelInterface;
-			};
-			channelInterface.subscribe = function() {
-				channel.subscribe.apply(channel, arguments);
-				return channelInterface;
-			};
-
-			channelInterface.unsubscribe = function() {
-				channel.unsubscribe.apply(channel, arguments);
-				return channelInterface;
-			};
-
-			return channelInterface;
-		}
 
 		function Topic (name) {
 			this._name = name;
@@ -176,19 +172,21 @@
 			if(subscription instanceof Subscription) {
 				subIndex = indexOf(this._subscriptions, subscription);
 				if(subIndex !== -1) {
+					delete this._subscriptions[subIndex];
 					this._subscriptions.splice(subIndex, 1);
 				}
 			}
 		};
 
 		Topic.prototype.removeSubscriptionByCallback = function(callback, context) {
+			var topic = this;
 			if (typeof callback !== "function") {
 				this._subscriptions = [];
 			} else {
 				each(this._subscriptions, function(sub) {
 					if(sub.callback === callback) {
 						if(!context || sub.context === context) {
-							sub.unsubscribe();
+							topic.removeSubscription(sub);
 						}
 					}
 				});
@@ -199,25 +197,15 @@
 			return this._subscriptions.length === 0;
 		};
 
-		function Subscription (topic, callback, context) {
-			this.topic = topic;
+		function Subscription (callback, context) {
 			this.callback = callback;
 			this.context = context;
-			this.executing = false;
 		}
-
-		Subscription.prototype.unsubscribe = function() {
-			this.topic.removeSubscription(this);
-			return this;
-		};
 
 		Subscription.prototype.fire = function(eventObj) {
 			var sub = this;
-			sub.executing = true;
-
 			setTimeout(function() {
 				sub.callback.call(sub.context, eventObj);
-				sub.executing = false;
 			}, 0);
 		};
 
@@ -247,7 +235,8 @@
 		function createGlobalChannelAction(action) {
 			return function() {
 				var globalChannel = getChannel(GLOBAL_CHANNEL_NAME);
-				return globalChannel[action].apply(globalChannel, slice.call(arguments));
+				globalChannel[action].apply(globalChannel, arguments);
+				return globalChannel;
 			};
 		}
 
@@ -260,3 +249,11 @@
 	makeEventworks(Eventworks);
 	Eventworks.makeEventworks = makeEventworks;
 })(window.Eventworks = window.Eventworks || {});
+
+
+var someChannel = Eventworks.channel("some channel")
+	.subscribe("some event", function() { console.log("some code");})
+	.publish("some event");
+
+Eventworks.makeEventworks(obj);
+obj.channel().subscribe().publish().unsubscribe();
