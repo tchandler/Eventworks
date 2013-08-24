@@ -3,220 +3,223 @@
  * https://github.com/zohogorganzola/Eventworks
  */
 
-(function (Eventworks) {
-	
-	//Helpers
-	var slice = Array.prototype.slice,
-		//modified each from underscore.js
-		each = function(obj, iterator, context) {
-			if (obj == null) return;
-			if (Array.prototype.forEach && obj.forEach === Array.prototype.forEach) {
-				obj.forEach(iterator, context);
-			} else if (obj.length === +obj.length) {
-				for (var i = 0, l = obj.length; i < l; i++) {
-					if (i in obj) iterator.call(context, obj[i], i, obj);
-			}
-			} else {
-				for (var key in obj) {
-					if (obj.hasOwnProperty(key)) {
-						iterator.call(context, obj[key], key, obj);
-					}
-				}
-			}
-		},
-		//modified indexOf from underscore.js
-		indexOf = function (array, item) {
-			if (array == null) return -1;
-			var i, l;
-			if (Array.prototype.indexOf && array.indexOf === Array.prototype.indexOf) return array.indexOf(item);
-			for (i = 0, l = array.length; i < l; i++) if (i in array && array[i] === item) return i;
-			return -1;
-		},
-		//Create object polyfill
-		createObject = Object.create || function(o) {
-			function F() {}
-			F.prototype = o;
-			return new F();
-		};
-	
-	function createChannelInterface(channel) {
-		var channelInterface = createObject(null);
+(function(Eventworks) {
 
-		channelInterface.publish = function() {
-			channel.publish.apply(channel, arguments);
-			return channelInterface;
-		};
-		channelInterface.subscribe = function() {
-			channel.subscribe.apply(channel, arguments);
-			return channelInterface;
-		};
+    //Helpers
+    var slice = Array.prototype.slice,
+        //modified each from underscore.js
+        each = function(obj, iterator, context) {
+            if (obj == null) return;
+            if (Array.prototype.forEach && obj.forEach === Array.prototype.forEach) {
+                obj.forEach(iterator, context);
+            } else if (obj.length === +obj.length) {
+                for (var i = 0, l = obj.length; i < l; i++) {
+                    if (i in obj) iterator.call(context, obj[i], i, obj);
+            }
+            } else {
+                for (var key in obj) {
+                    if (obj.hasOwnProperty(key)) {
+                        iterator.call(context, obj[key], key, obj);
+                    }
+                }
+            }
+        },
+        //modified indexOf from underscore.js
+        indexOf = function(array, item) {
+            if (array == null) return -1;
+            var i, l;
+            if (Array.prototype.indexOf && array.indexOf === Array.prototype.indexOf) return array.indexOf(item);
+            for (i = 0, l = array.length; i < l; i++) if (i in array && array[i] === item) return i;
+            return -1;
+        },
+        //Create object polyfill
+        createObject = Object.create || function(o) {
+            function F() {}
+            F.prototype = o;
+            return new F();
+        };
 
-		channelInterface.unsubscribe = function() {
-			channel.unsubscribe.apply(channel, arguments);
-			return channelInterface;
-		};
+    function createChannelInterface(channel) {
+        var channelInterface = createObject(null);
 
-		return channelInterface;
-	}
+        channelInterface.publish = function() {
+            channel.publish.apply(channel, arguments);
+            return channelInterface;
+        };
+        channelInterface.subscribe = function() {
+            channel.subscribe.apply(channel, arguments);
+            return channelInterface;
+        };
 
-	function makeEventworks(eventableObj) {
+        channelInterface.unsubscribe = function() {
+            channel.unsubscribe.apply(channel, arguments);
+            return channelInterface;
+        };
 
-		//Privates
-		var channels = {},
-			GLOBAL_CHANNEL_NAME = "__global__";
+        return channelInterface;
+    }
 
-		function Channel(name) {
-			this._name = name;
-			this._topics = {};
-			this.externalInterface = createChannelInterface(this);
-		}
+    function makeEventworks(eventableObj) {
 
-		Channel.prototype.getTopic = function(topicName) {
-			if(typeof topicName === "string") {
-				if(topicName in this._topics){
-					return this._topics[topicName];
-				} else {
-					return this._topics[topicName] = new Topic(topicName);
-				}
-			}
-		};
+        //Privates
+        var channels = {},
+            GLOBAL_CHANNEL_NAME = '__global__';
 
-		Channel.prototype.subscribe = function(topicName, callback, context) {
-			var topic = this.getTopic(topicName),
-				subscription = new Subscription(callback, context);
+        function Channel(name) {
+            this._name = name;
+            this._topics = {};
+            this.externalInterface = createChannelInterface(this);
+        }
 
-			topic.addSubscription(subscription);
-		};
+        Channel.prototype.getTopic = function(topicName) {
+            if (typeof topicName === 'string') {
 
-		Channel.prototype.publish = function(topicName, eventObj) {
-			var topic;
+                if (!(topicName in this._topics)) {
+                    this._topics[topicName] = new Topic(topicName);
+                }
 
-			if(typeof topicName === "string") {
-				topic = this.getTopic(topicName);
-				topic.callSubscriptions(eventObj);
-			}
-		};
+                return this._topics[topicName];
+            }
+        };
 
-		Channel.prototype.unsubscribe = function(subscription) {
-			var args = slice.call(arguments),
-				topic = args[0],
-				callback = args[1],
-				callbackContext = args[2],
-				callbackIndex;
+        Channel.prototype.subscribe = function(topicName, callback, context) {
+            var topic = this.getTopic(topicName);
 
-			if(typeof topic === "string") {
-				topic = this.getTopic(topic);
+            if (topic) {
+                var subscription = new Subscription(callback, context);
+                topic.addSubscription(subscription);
+            }
+        };
 
-				topic.removeSubscriptionByCallback(callback, callbackContext);
+        Channel.prototype.publish = function(topicName, eventObj) {
+            var topic;
 
-				if(topic.isEmpty()) {
-					delete this._topics[topic._name];
-				}
-			} else {
-				each(this._topics, function (topic) {
-					topic.removeSubscriptionByCallback();
-				});
+            if (typeof topicName === 'string') {
+                topic = this.getTopic(topicName);
+                topic.callSubscriptions(eventObj);
+            }
+        };
 
-				this._topics = [];
-			}
-		};
+        Channel.prototype.unsubscribe = function(subscription) {
+            var args = slice.call(arguments),
+                topic = args[0],
+                callback = args[1],
+                callbackContext = args[2],
+                callbackIndex;
 
-		function Topic (name) {
-			this._name = name;
-			this._subscriptions = [];
-		}
+            if (typeof topic === 'string') {
+                topic = this.getTopic(topic);
 
-		Topic.prototype.callSubscriptions = function(eventObj) {
-			each(this._subscriptions, function(sub) {
-				sub.fire(eventObj);
-			});
-		};
+                topic.removeSubscriptionByCallback(callback, callbackContext);
 
-		Topic.prototype.addSubscription = function(subscription) {
-			if(subscription instanceof Subscription) {
-				this._subscriptions.push(subscription);
-			}
-		};
+                if (topic.isEmpty()) {
+                    delete this._topics[topic._name];
+                }
+            } else {
+                each(this._topics, function(topic) {
+                    topic.removeSubscriptionByCallback();
+                });
 
-		Topic.prototype.removeSubscription = function(subscription) {
-			var subIndex;
-			if(subscription instanceof Subscription) {
-				subIndex = indexOf(this._subscriptions, subscription);
-				if(subIndex !== -1) {
-					delete this._subscriptions[subIndex];
-					this._subscriptions.splice(subIndex, 1);
-				}
-			}
-		};
+                this._topics = [];
+            }
+        };
 
-		Topic.prototype.removeSubscriptionByCallback = function(callback, context) {
-			var topic = this;
-			if (typeof callback !== "function") {
-				this._subscriptions = [];
-			} else {
-				each(this._subscriptions, function(sub) {
-					if(sub.callback === callback) {
-						if(!context || sub.context === context) {
-							topic.removeSubscription(sub);
-						}
-					}
-				});
-			}
-		};
+        function Topic(name) {
+            this._name = name;
+            this._subscriptions = [];
+        }
 
-		Topic.prototype.isEmpty = function () {
-			return this._subscriptions.length === 0;
-		};
+        Topic.prototype.callSubscriptions = function(eventObj) {
+            each(this._subscriptions, function(sub) {
+                sub.fire(eventObj);
+            });
+        };
 
-		function Subscription (callback, context) {
-			this.callback = callback;
-			this.context = context;
-		}
+        Topic.prototype.addSubscription = function(subscription) {
+            if (subscription instanceof Subscription) {
+                this._subscriptions.push(subscription);
+            }
+        };
 
-		Subscription.prototype.fire = function(eventObj) {
-			var sub = this;
-			setTimeout(function() {
-				sub.callback.call(sub.context, eventObj);
-			}, 0);
-		};
+        Topic.prototype.removeSubscription = function(subscription) {
+            var subIndex;
+            if (subscription instanceof Subscription) {
+                subIndex = indexOf(this._subscriptions, subscription);
+                if (subIndex !== -1) {
+                    delete this._subscriptions[subIndex];
+                    this._subscriptions.splice(subIndex, 1);
+                }
+            }
+        };
 
-		function getChannel(channelName) {
-			var channel;
-			if(typeof channelName === "string") {
-				if(channelName in channels) {
-					channel = channels[channelName];
-				} else {
-					channel = channels[channelName] = new Channel(channelName);
-				}
-			} else {
-				channel = getGlobalChannel(GLOBAL_CHANNEL_NAME);
-			}
+        Topic.prototype.removeSubscriptionByCallback = function(callback, context) {
+            var topic = this;
+            if (typeof callback !== 'function') {
+                this._subscriptions = [];
+            } else {
+                each(this._subscriptions, function(sub) {
+                    if (sub.callback === callback) {
+                        if (!context || sub.context === context) {
+                            topic.removeSubscription(sub);
+                        }
+                    }
+                });
+            }
+        };
 
-			return channel.externalInterface;
-		}
+        Topic.prototype.isEmpty = function() {
+            return this._subscriptions.length === 0;
+        };
 
-		function getGlobalChannel() {
-			if(channels[GLOBAL_CHANNEL_NAME] === undefined) {
-				channels[GLOBAL_CHANNEL_NAME] = new Channel(GLOBAL_CHANNEL_NAME);
-			}
+        function Subscription(callback, context) {
+            this.callback = callback;
+            this.context = context;
+        }
 
-			return channels[GLOBAL_CHANNEL_NAME];
-		}
+        Subscription.prototype.fire = function(eventObj) {
+            var sub = this;
+            setTimeout(function() {
+                sub.callback.call(sub.context, eventObj);
+            }, 0);
+        };
 
-		function createGlobalChannelAction(action) {
-			return function() {
-				var globalChannel = getChannel(GLOBAL_CHANNEL_NAME);
-				globalChannel[action].apply(globalChannel, arguments);
-				return globalChannel;
-			};
-		}
+        function getChannel(channelName) {
+            var channel;
+            if (typeof channelName === 'string') {
+                if (channelName in channels) {
+                    channel = channels[channelName];
+                } else {
+                    channel = channels[channelName] = new Channel(channelName);
+                }
+            } else {
+                channel = getGlobalChannel(GLOBAL_CHANNEL_NAME);
+            }
 
-		eventableObj.channel = getChannel;
-		eventableObj.publish = createGlobalChannelAction("publish");
-		eventableObj.subscribe = createGlobalChannelAction("subscribe");
-		eventableObj.unsubscribe = createGlobalChannelAction("unsubscribe");
-	}
+            return channel.externalInterface;
+        }
 
-	makeEventworks(Eventworks);
-	Eventworks.makeEventworks = makeEventworks;
+        function getGlobalChannel() {
+            if (channels[GLOBAL_CHANNEL_NAME] === undefined) {
+                channels[GLOBAL_CHANNEL_NAME] = new Channel(GLOBAL_CHANNEL_NAME);
+            }
+
+            return channels[GLOBAL_CHANNEL_NAME];
+        }
+
+        function createGlobalChannelAction(action) {
+            return function() {
+                var globalChannel = getChannel(GLOBAL_CHANNEL_NAME);
+                globalChannel[action].apply(globalChannel, arguments);
+                return globalChannel;
+            };
+        }
+
+        eventableObj.channel = getChannel;
+        eventableObj.publish = createGlobalChannelAction('publish');
+        eventableObj.subscribe = createGlobalChannelAction('subscribe');
+        eventableObj.unsubscribe = createGlobalChannelAction('unsubscribe');
+    }
+
+    makeEventworks(Eventworks);
+    Eventworks.makeEventworks = makeEventworks;
 })(window.Eventworks = window.Eventworks || {});
