@@ -131,7 +131,7 @@
 
         Topic.prototype.callSubscriptions = function(eventObj) {
             each(this._subscriptions, function(sub) {
-                sub.fire(eventObj);
+                sub.callback.call(sub.context, eventObj);
             });
         };
 
@@ -175,13 +175,6 @@
             this.callback = callback;
             this.context = context;
         }
-
-        Subscription.prototype.fire = function(eventObj) {
-            var sub = this;
-            setTimeout(function() {
-                sub.callback.call(sub.context, eventObj);
-            }, 0);
-        };
 
         function getChannel(channelName) {
             var channel;
