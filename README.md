@@ -19,7 +19,7 @@ module1Channel.publish('update', 'info to pass');
 
 var module2Channel = Eventworks.channel('module2');
 module1Channel.subscribe('update', function(info) {
-  console.log('update module 2 ' + info); //update module 2 info to pass
+  console.log('update module 2 ' + info);
 });
 module2Channel.publish('update', 'info to pass');
 ```
@@ -32,6 +32,11 @@ API
 ```javascript
 //Global default channel object.
 Eventworks.channel();
+
+//Can call methods directly on Eventworks, will default to global channel.
+Eventworks.subscribe == Eventworks.channel().subscribe;
+Eventworks.publish == Eventworks.channel().publish;
+Eventworks.unsubscribe == Eventworks.channel().unsubscribe;
 
 //Named channel object.
 Eventworks.channel(string channelName);
@@ -49,7 +54,7 @@ channel.publish(string topicName, object eventObject);
 
 //Unsubscribe with varying amounts of specificity.
 //Removes all subscriptions that match inputs.
-channel.unsubscribe(); //All subscriptions
+channel.unsubscribe();
 channel.unsubscribe(string topicName);
 channel.unsubscribe(string topicName, function callback);
 channel.unsubscribe(string topicName, function callback, object context);
