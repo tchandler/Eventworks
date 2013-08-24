@@ -6,26 +6,7 @@
 (function(Eventworks) {
 
     //Helpers
-    var slice = Array.prototype.slice,
-        //modified each from underscore.js
-        each = function(obj, iterator, context) {
-            if (obj == null) return;
-            if (Array.prototype.forEach && obj.forEach === Array.prototype.forEach) {
-                obj.forEach(iterator, context);
-            } else if (obj.length === +obj.length) {
-                for (var i = 0, l = obj.length; i < l; i++) {
-                    if (i in obj) iterator.call(context, obj[i], i, obj);
-            }
-            } else {
-                for (var key in obj) {
-                    if (obj.hasOwnProperty(key)) {
-                        iterator.call(context, obj[key], key, obj);
-                    }
-                }
-            }
-        },
-        //modified indexOf from underscore.js
-        indexOf = function(array, item) {
+    var indexOf = function(array, item) {
             if (array == null) return -1;
             var i, l;
             if (Array.prototype.indexOf && array.indexOf === Array.prototype.indexOf) return array.indexOf(item);
@@ -86,8 +67,11 @@
             var topic = this.getTopic(topicName);
 
             if (topic) {
-                var subscription = new Subscription(callback, context);
-                topic.addSubscription(subscription);
+                var subscription = {
+                    callback: callback,
+                    context: context
+                };
+                topic._subscriptions.push(subscription);
             }
         };
 
@@ -96,12 +80,15 @@
 
             if (typeof topicName === 'string') {
                 topic = this.getTopic(topicName);
-                topic.callSubscriptions(eventObj);
+                for(var i = 0, len = topic._subscriptions.length; i < len; i++) {
+                    var sub = topic._subscriptions[i];
+                    sub.callback.call(sub.context, eventObj);
+                }
             }
         };
 
         Channel.prototype.unsubscribe = function(subscription) {
-            var args = slice.call(arguments),
+            var args = Array.prototype.slice.call(arguments),
                 topic = args[0],
                 callback = args[1],
                 callbackContext = args[2],
@@ -112,13 +99,13 @@
 
                 topic.removeSubscriptionByCallback(callback, callbackContext);
 
-                if (topic.isEmpty()) {
+                if (topic._subscriptions.length === 0) {
                     delete this._topics[topic._name];
                 }
             } else {
-                each(this._topics, function(topic) {
-                    topic.removeSubscriptionByCallback();
-                });
+                for(var i = 0, len = this._topics.length; i < len; i++) {
+                    this._topics[i].removeSubscriptionByCallback();
+                }
 
                 this._topics = [];
             }
@@ -130,25 +117,19 @@
         }
 
         Topic.prototype.callSubscriptions = function(eventObj) {
-            each(this._subscriptions, function(sub) {
+            var sub;
+            for(var i = 0, len = this._subscriptions.length; i < len; i++) {
+                sub = this._subscriptions[i];
                 sub.callback.call(sub.context, eventObj);
-            });
-        };
-
-        Topic.prototype.addSubscription = function(subscription) {
-            if (subscription instanceof Subscription) {
-                this._subscriptions.push(subscription);
             }
         };
 
         Topic.prototype.removeSubscription = function(subscription) {
             var subIndex;
-            if (subscription instanceof Subscription) {
-                subIndex = indexOf(this._subscriptions, subscription);
-                if (subIndex !== -1) {
-                    delete this._subscriptions[subIndex];
-                    this._subscriptions.splice(subIndex, 1);
-                }
+            subIndex = indexOf(this._subscriptions, subscription);
+            if (subIndex !== -1) {
+                delete this._subscriptions[subIndex];
+                this._subscriptions.splice(subIndex, 1);
             }
         };
 
@@ -157,24 +138,17 @@
             if (typeof callback !== 'function') {
                 this._subscriptions = [];
             } else {
-                each(this._subscriptions, function(sub) {
+                var sub;
+                for(var i = 0, len = this._subscriptions.length; i < len; i++) {
+                    sub = this._subscriptions[i];
                     if (sub.callback === callback) {
                         if (!context || sub.context === context) {
                             topic.removeSubscription(sub);
                         }
                     }
-                });
+                }
             }
         };
-
-        Topic.prototype.isEmpty = function() {
-            return this._subscriptions.length === 0;
-        };
-
-        function Subscription(callback, context) {
-            this.callback = callback;
-            this.context = context;
-        }
 
         function getChannel(channelName) {
             var channel;
@@ -192,11 +166,8 @@
         }
 
         function getGlobalChannel() {
-            if (channels[GLOBAL_CHANNEL_NAME] === undefined) {
-                channels[GLOBAL_CHANNEL_NAME] = new Channel(GLOBAL_CHANNEL_NAME);
-            }
-
-            return channels[GLOBAL_CHANNEL_NAME];
+            return (channels[GLOBAL_CHANNEL_NAME] =
+                    channels[GLOBAL_CHANNEL_NAME] || new Channel(GLOBAL_CHANNEL_NAME));
         }
 
         function createGlobalChannelAction(action) {
