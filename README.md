@@ -1,7 +1,12 @@
 Eventworks
 =========
----
-Eventworks is a channeled pub sub system.  What does that mean exactly?
+
+Eventworks is a channeled pub sub system.
+
+Basic features:
+ * Channel support.
+ * Chainable interface, you always get the channel object back from Eventworks calls.
+ * Private instances allow you to add a new Eventworks within your modules.
 
 Similarly named events belonging to different modules are put on their own channels:
 
@@ -21,15 +26,49 @@ module2Channel.publish('update', 'info to pass');
 
 ---
 
-As long as a shared reference to the Eventworks object is available, all channels and topics can be listened to.  But if you need something more private, you can extend any object with it's own Eventworks instance.  Now your module's internals can communicte with the same interface they use to communicate externally.
+API
+=========
 
 ```javascript
-var myModule = {};
-//Adds channel, publish, subscribe, unsubscribe methods to object.
+//Global default channel object.
+Eventworks.channel();
+
+//Named channel object.
+Eventworks.channel(string channelName);
+
+var channel = Eventworks.channel();
+
+//Subscription callbacks can recieve an argument when called
+channel.subscribe(string topicName, function callback);
+//They can also be called with a context
+channel.subscribe(string topicName, function callback, object context);
+
+//Publish just an event or with an argument for the callback
+channel.publish(string topicName);
+channel.publish(string topicName, object eventObject);
+
+//Unsubscribe with varying amounts of specificity.
+//Removes all subscriptions that match inputs.
+channel.unsubscribe(); //All subscriptions
+channel.unsubscribe(string topicName);
+channel.unsubscribe(string topicName, function callback);
+channel.unsubscribe(string topicName, function callback, object context);
+
+//Interface is chainable.
+channel.subscribe('topic', callback).publish('topic').unsubscribe('topic', callback);
+
+//Make a new instance of Eventworks
+var newEventworks = Eventworks.makeEventworks();
+
+//Mixin a new instance of Eventworks to an object
+//Adds channel, publish, subscribe, unsubscribe methods
+//that reference their own new internals
 Eventworks.makeEventworks(myModule);
 
 //All of this is a wholly separate Eventworks instance.
 var internalChannel = myModule.channel('internalChannel');
 internalChannel.subscribe('internalTopic', someCallback)
 internalChannel.publish('internalTopic');
+
+internalChannel !== Eventworks.channel('internalChannel');
 ```
