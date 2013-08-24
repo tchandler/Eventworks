@@ -178,10 +178,13 @@
             };
         }
 
+        eventableObj = eventableObj || {};
         eventableObj.channel = getChannel;
         eventableObj.publish = createGlobalChannelAction('publish');
         eventableObj.subscribe = createGlobalChannelAction('subscribe');
         eventableObj.unsubscribe = createGlobalChannelAction('unsubscribe');
+
+        return eventableObj;
     }
 
     makeEventworks(Eventworks);

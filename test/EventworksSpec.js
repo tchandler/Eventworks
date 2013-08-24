@@ -105,6 +105,13 @@ describe("Eventworks", function() {
 		expect(Eventworks2.subscribe);
 		expect(Eventworks2.unsubscribe);
 
+		//Instance without something to attach to.
+		var Eventworks3 = Eventworks.makeEventworks();
+		expect(Eventworks3.channel);
+		expect(Eventworks3.publish);
+		expect(Eventworks3.subscribe);
+		expect(Eventworks3.unsubscribe);
+
 		var defaultChannel2 = Eventworks2.channel();
 		expect(defaultChannel2 != defaultChannel);
 
